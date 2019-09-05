@@ -103,7 +103,7 @@ class Query:
             # only identifiers are present in identifiers list and should be explored
             elif isinstance(identifier, Identifier):
                 ret = self.process_id(identifier, typ)
-                ret['type'] = typ
+                # ret['type'] = typ
                 arr.append(ret)
             else:
                 print("unknown token in identifiers list is ignored!!!", identifier)
@@ -166,7 +166,7 @@ class Query:
         '''process a Comparison class'''
         cond_dict = dict()
         id_cnt = 0
-        print(cond.tokens)
+        # print(cond.tokens)
         for token in cond.tokens:
             if token.ttype is Whitespace :
                 continue
@@ -182,3 +182,12 @@ class Query:
                 exit(0)
         cond_dict['id_cnt'] = id_cnt
         return cond_dict
+
+    def join_check(self):
+        ''' check if any cond is based on inner join'''
+        for cond_dict in self.conds:
+            if 'id1' in cond_dict and cond_dict['op'] == '=' and self.seen_star:
+                col = cond_dict['id1']
+                col_name = col['table'] + '.' + col['col']
+                # remove the extra column
+                q.columns.remove(col)
