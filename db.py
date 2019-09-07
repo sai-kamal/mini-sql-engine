@@ -58,6 +58,8 @@ class DB:
         for line in lines:
             line = line.strip().split(',')
             for i, val in enumerate(line):
+                if val[0] == '"' or val[0] == "'":
+                    val = val[1:-1]
                 table_dict[cols[i]].append(int(val))
     
     def post_check(self, q):
@@ -78,6 +80,7 @@ class DB:
                 exit(0)
             else:
                 self.tables_in_query.append(self.tables[table_dict['table']])
+
         # check if query columns in select part of the query are in DB and 
         for col_dict in q.columns:
             self.check_col_validity(q, col_dict)
@@ -98,6 +101,7 @@ class DB:
                 for i in range(cond_dict['id_cnt']):
                     col_dict = cond_dict['id' + str(i)]
                     self.check_col_validity(q, col_dict)
+        
         # if * is seen, change q.columns to have all columns
         if q.seen_star:
             q.columns = []
@@ -125,6 +129,9 @@ class DB:
                 print(
                     col_dict['col'] + ' present in more than one table; query is ambiguous')
                 exit(0)
+            elif col_present == 0:
+                print(col_dict['col'] + ' column is not present!!!')
+                exit(0)
             else: # add the column name to the col_dict as it is not present
                 col_dict['table'] = table_name
 
@@ -141,7 +148,6 @@ class DB:
             self.process_cond(final_table, q.conds[0])
             if len(q.conds) == 2:
                 self.process_cond(final_table, q.conds[1], q.rel_2_conds)
-
         # make output table only have valid entries
         output_table = dict()
         if 'valid' in final_table:
@@ -159,6 +165,9 @@ class DB:
                     if col not in output_table.keys():
                         output_table[col] = []
                     output_table[col].append(final_table[col][i])
+        if output_table == {}:
+            print('no valid rows exist!!!')
+            exit(0)
         return output_table
 
     def cross_product_tables(self, q):
@@ -210,29 +219,31 @@ class DB:
                 if rel is None and eval(eval_str):
                         table['valid'][i] = 1
                 elif rel == 1:
-                    if table['valid'][i] or eval(eval_str):  # or
+                    if eval(eval_str):  # or
                         table['valid'][i] = 1
                 else:
                     if table['valid'][i] and eval(eval_str):  # and
                         table['valid'][i] = 1
+                    else:
+                        table['valid'][i] = 0
         
         elif cond_dict['id_cnt'] == 2:
-            col1_name = cond_dict['id0']['table'] + '.' + cond_dict['id0']
-            ['col']
-            col2_name = cond_dict['id1']['table'] + '.' + cond_dict['id1']
-            ['col']
-            length = len(table[col1_name]) * len(table[col2_name])
+            col1_name = cond_dict['id0']['table'] + '.' + cond_dict['id0']['col']
+            col2_name = cond_dict['id1']['table'] + '.' + cond_dict['id1']['col']
+            length = len(table[col1_name])
+            # print(table, length)
             for i in range(length):
-                eval_str = str(table[col1_name][i]) + \
-                    op + str(table[col2_name][i])
+                eval_str = str(table[col1_name][i]) + op + str(table[col2_name][i])
                 if rel is None and eval(eval_str):
                     table['valid'][i] = 1
                 elif rel == 1:
-                    if table['valid'][i] or eval(eval_str):  # or
+                    if eval(eval_str):  # or
                         table['valid'][i] = 1
                 else:
                     if table['valid'][i] and eval(eval_str):  # and
                         table['valid'][i] = 1
+                    else:
+                        table['valid'][i] = 0
 
     def process_agg(self, table, q):
         ''' processes aggregations if any on the columns'''
@@ -248,6 +259,8 @@ class DB:
                     table[col] = [sum(table[col])]
                 elif re.match(r'[aA][vV][gG]', func):
                     table[col] = [sum(table[col])/len(table[col])]
+                elif re.match(r'[dD][iI][sS][tT][iI][nN][cC][tT]', func):
+                    q.seen_distinct = 1
                 else:
                     print('unknown aggreagation function!!!')
                     exit(0)
@@ -260,26 +273,32 @@ class DB:
         # process distinct
         tuples = self.process_distinct(table, q)
         
-        for col_dict in q.columns:
+        for col_dict in q.columns[:-1]:
             col = col_dict['table'] + '.' + col_dict['col']
             if 'function' in col_dict:
                 col = col_dict['function'] + '(' + col + ')'
-            print(col, end='\t')
-        print()
+            print(col, end=',')
+        col_dict = q.columns[-1]
+        col = col_dict['table'] + '.' + col_dict['col']
+        if 'function' in col_dict:
+            col = col_dict['function'] + '(' + col + ')'
+        print(col)
         
         for tpl in tuples:
-            for val in tpl:
-                print(val, end='\t')
-            print()
+            for val in tpl[:-1]:
+                print(val, end=',')
+            print(tpl[-1])
+        print(len(tuples), 'rows')
 
     def process_distinct(self, table, q):
         '''make the table have distinct rows'''
         tuples_list = []
+        # print(q.seen_distinct)
         for i in range(len(list(table.values())[0])):
             temp = []
             for col_dict in q.columns:
                 col = col_dict['table'] + '.' + col_dict['col']
                 temp.append(table[col][i])
-            if temp not in tuples_list:
+            if not q.seen_distinct or temp not in tuples_list:
                 tuples_list.append(temp)
         return tuples_list

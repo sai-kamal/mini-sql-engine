@@ -11,12 +11,14 @@ if __name__ == '__main__':
     # query
     q = Query(sys.argv[1])
     q.process_query()
-    print(q.tables)
-    print(q.columns)
-    print(q.conds)
+    # print(q.tables)
+    # print(q.columns)
+    # print(q.conds)
     
     # post process using DB and query
     db.post_check(q)
     table = db.run_query(q)
+    print(q.seen_distinct)
     table = db.process_agg(table, q)
+    print(q.seen_distinct)
     db.print_table(table, q)

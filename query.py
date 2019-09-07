@@ -30,7 +30,7 @@ class Query:
             if token.ttype is DML:
                 if token.match(token.ttype, r'[sS][eE][lL][eE][cC][tT]', True):
                     self.seen_select = 1
-                    print("select is seen")
+                    # print("select is seen")
                 else:
                     print('unknown DML seen!!!', token)
                     exit(0)
@@ -41,7 +41,7 @@ class Query:
             elif token.ttype is Wildcard:
                 if token.match(token.ttype, ['*']):
                     self.seen_star = 1
-                    print("star is seen")
+                    # print("star is seen")
                 else:
                     print('unknown wildcard seen!!!', token)
                     exit(0)
@@ -54,10 +54,10 @@ class Query:
                             'before this */distinct/columns are already present, please check the query')
                         exit(0)
                     self.seen_distinct = 1
-                    print("distinct is seen")
+                    # print("distinct is seen")
                 elif token.match(token.ttype, r'[fF][rR][oO][mM]', True):  # from
                     self.seen_from = 1
-                    print("from is seen")
+                    # print("from is seen")
                 else:
                     print('unknown keyword seen!!!', token)
                     exit(0)
@@ -129,6 +129,9 @@ class Query:
         token = token.split('(')
         # if function exists and assuming only a single function
         if len(token) > 1:
+            # if token[0] == 'distinct':
+            #     print('distinct can\'t be used as a function!!!')
+            #     exit(0)
             tkn_info['function'] = token[0]
             token = token[1][:-1]
         else:
@@ -140,11 +143,15 @@ class Query:
             tkn_info['col'] = token[1]
         else:
             tkn_info['col'] = token[0]
+        if tkn_info['col'] == '*':
+            self.seen_star = 1
+            # print('wrong usage of *!!!')
+            # exit(0)
         return tkn_info
 
     def process_where(self, token):
         '''process where part of the query/stmt'''
-        print(token.tokens)
+        # print(token.tokens)
         for tkn in token.tokens:
             if tkn.ttype is Whitespace or tkn.ttype is Punctuation or tkn.match(Keyword, r'[wW][hH][eE][rR][eE]', True):
                 continue
@@ -190,4 +197,4 @@ class Query:
                 col = cond_dict['id1']
                 col_name = col['table'] + '.' + col['col']
                 # remove the extra column
-                q.columns.remove(col)
+                self.columns.remove(col)
